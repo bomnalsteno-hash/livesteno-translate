@@ -147,11 +147,16 @@ export const StenographerPage: React.FC = () => {
 
     // 3. Translate (비동기로 처리하여 UI 블로킹 방지)
     if (settings.translationEnabled && settings.targetLanguages.length > 0) {
+      // 번역 시작 시간 기록
+      const translationStartTime = Date.now();
+      
       // 번역을 비동기로 처리하여 UI가 즉시 업데이트되도록 함
       geminiService.translateText(
         textToProcess.trim(),
         settings.targetLanguages
       ).then((translations) => {
+        const elapsed = Date.now() - translationStartTime;
+        
         if (Object.keys(translations).length > 0) {
           const updatedMessage: StenoMessage = {
             ...initialMessage,
@@ -161,9 +166,33 @@ export const StenographerPage: React.FC = () => {
           
           broadcastService.sendUpdateMessage(updatedMessage);
           setLogs(prev => prev.map(msg => msg.id === messageId ? updatedMessage : msg));
+          
+          // 느린 번역 경고 (5초 이상)
+          if (elapsed > 5000) {
+            console.warn(`Slow translation: ${elapsed}ms for "${textToProcess.substring(0, 20)}..."`);
+          }
+        } else {
+          // 번역이 실패했지만 에러 없이 빈 결과가 반환된 경우
+          console.warn(`Translation returned empty result after ${elapsed}ms for: "${textToProcess.substring(0, 30)}..."`);
+          // 실패한 번역도 최종 상태로 표시
+          const failedMessage: StenoMessage = {
+            ...initialMessage,
+            isFinal: true
+          };
+          broadcastService.sendUpdateMessage(failedMessage);
+          setLogs(prev => prev.map(msg => msg.id === messageId ? failedMessage : msg));
         }
       }).catch((err) => {
-        console.error("Translation failed", err);
+        const elapsed = Date.now() - translationStartTime;
+        console.error(`Translation failed after ${elapsed}ms:`, err);
+        
+        // 에러 발생 시에도 최종 상태로 표시
+        const errorMessage: StenoMessage = {
+          ...initialMessage,
+          isFinal: true
+        };
+        broadcastService.sendUpdateMessage(errorMessage);
+        setLogs(prev => prev.map(msg => msg.id === messageId ? errorMessage : msg));
       });
     }
   }, [settings.translationEnabled, settings.targetLanguages]);
