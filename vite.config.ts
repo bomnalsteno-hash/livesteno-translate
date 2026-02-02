@@ -12,5 +12,16 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, '.'),
     }
+  },
+  build: {
+    // 캐시 버스팅 강화
+    rollupOptions: {
+      output: {
+        // 파일명에 해시 포함하여 캐시 버스팅
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
+      }
+    }
   }
 });

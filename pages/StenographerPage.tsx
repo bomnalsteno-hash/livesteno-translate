@@ -174,7 +174,9 @@ export const StenographerPage: React.FC = () => {
         } else {
           // 번역이 실패했지만 에러 없이 빈 결과가 반환된 경우
           console.warn(`Translation returned empty result after ${elapsed}ms for: "${textToProcess.substring(0, 30)}..."`);
-          // 실패한 번역도 최종 상태로 표시
+          console.warn("Possible causes: API key issue, network error, or API rate limit");
+          
+          // 실패한 번역도 최종 상태로 표시 (번역 없이)
           const failedMessage: StenoMessage = {
             ...initialMessage,
             isFinal: true
@@ -186,7 +188,20 @@ export const StenographerPage: React.FC = () => {
         const elapsed = Date.now() - translationStartTime;
         console.error(`Translation failed after ${elapsed}ms:`, err);
         
-        // 에러 발생 시에도 최종 상태로 표시
+        // 에러 상세 정보 출력
+        if (err instanceof Error) {
+          console.error("Error type:", err.constructor.name);
+          console.error("Error message:", err.message);
+          if (err.message.includes("timeout")) {
+            console.error("⚠️ Translation timed out. Check your internet connection and API status.");
+          } else if (err.message.includes("API") || err.message.includes("key")) {
+            console.error("⚠️ API key issue. Check VITE_API_KEY in Vercel environment variables.");
+          } else {
+            console.error("⚠️ Translation API error. Check browser console for details.");
+          }
+        }
+        
+        // 에러 발생 시에도 최종 상태로 표시 (번역 없이)
         const errorMessage: StenoMessage = {
           ...initialMessage,
           isFinal: true
