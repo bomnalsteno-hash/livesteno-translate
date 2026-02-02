@@ -18,9 +18,16 @@ class GeminiService {
   constructor() {
     const apiKey = import.meta.env.VITE_API_KEY;
     if (apiKey) {
-      this.ai = new GoogleGenAI({ apiKey });
+      // API 키 형식 검증 (Google API 키는 보통 특정 형식을 가짐)
+      if (apiKey.length < 20) {
+        console.error("VITE_API_KEY appears to be invalid (too short). Check your environment variable.");
+      } else {
+        console.log("Gemini API key found, initializing service...");
+        this.ai = new GoogleGenAI({ apiKey });
+      }
     } else {
-      console.warn("VITE_API_KEY is missing from environment variables.");
+      console.error("❌ VITE_API_KEY is missing from environment variables.");
+      console.error("Please set VITE_API_KEY in Vercel environment variables.");
     }
   }
 
@@ -76,18 +83,10 @@ class GeminiService {
         properties[lang] = { type: Type.STRING };
       });
 
-      // 타임아웃이 있는 번역 요청
+      // 더 간단하고 빠른 프롬프트 사용
       const translationPromise = this.ai.models.generateContent({
         model: GEMINI_MODEL,
-        contents: `You are a professional translator. Translate the following Korean text into ${actualTargets.map(l => l.toUpperCase()).join(", ")}. 
-
-Korean text: "${text.trim()}"
-
-Requirements:
-- Return ONLY a valid JSON object
-- Keys must be language codes: ${actualTargets.map(l => `"${l}"`).join(", ")}
-- Values must be the translations
-- If the text is punctuation only, return it as-is for all languages`,
+        contents: `Translate "${text.trim()}" from Korean to ${actualTargets.join(", ")}. Return JSON: {${actualTargets.map(l => `"${l}": "translation"`).join(", ")}}`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -95,7 +94,8 @@ Requirements:
             properties: properties,
             required: actualTargets,
           },
-          temperature: 0.3, // 더 일관된 결과를 위해 낮은 temperature
+          temperature: 0.1, // 더 빠르고 일관된 결과
+          maxOutputTokens: 500, // 출력 토큰 제한으로 속도 향상
         },
       });
 
@@ -144,13 +144,32 @@ Requirements:
       return translations;
     } catch (error) {
       const elapsed = Date.now() - startTime;
-      console.error(`Translation error after ${elapsed}ms:`, error);
+      console.error(`❌ Translation error after ${elapsed}ms:`, error);
+      
       if (error instanceof Error) {
         console.error("Error message:", error.message);
+        console.error("Error name:", error.name);
+        
         if (error.message.includes("timeout")) {
-          console.error("Translation timed out. The API may be slow or unavailable.");
+          console.error("⚠️ Translation timed out after 10 seconds.");
+          console.error("Possible causes:");
+          console.error("  1. API key is invalid or not set correctly in Vercel");
+          console.error("  2. Network connectivity issues");
+          console.error("  3. Gemini API is experiencing high load");
+          console.error("  4. API rate limit exceeded");
+          console.error("  5. Model name 'gemini-3-flash-preview' may not be available");
+          console.error("\n💡 Check Vercel environment variables: Settings → Environment Variables → VITE_API_KEY");
+        } else if (error.message.includes("API") || error.message.includes("key") || error.message.includes("401") || error.message.includes("403")) {
+          console.error("⚠️ API authentication error. Check your VITE_API_KEY in Vercel.");
+        } else if (error.message.includes("429") || error.message.includes("rate limit")) {
+          console.error("⚠️ API rate limit exceeded. Please wait a moment and try again.");
+        } else {
+          console.error("⚠️ Unexpected error:", error);
         }
+      } else {
+        console.error("⚠️ Unknown error type:", error);
       }
+      
       return {};
     }
   }
