@@ -1,0 +1,5 @@
+{
+  "name": "LiveSteno Translate",
+  "description": "Real-time stenography and translation platform for live events using manual typing and Gemini API.",
+  "requestFramePermissions": []
+}
