@@ -145,40 +145,26 @@ export const StenographerPage: React.FC = () => {
     
     setLogs(prev => [...prev, initialMessage]);
 
-    // 3. Translate
+    // 3. Translate (비동기로 처리하여 UI 블로킹 방지)
     if (settings.translationEnabled && settings.targetLanguages.length > 0) {
-      try {
-        console.log(`Starting translation for: "${textToProcess.trim()}" with languages:`, settings.targetLanguages);
-        const translations = await geminiService.translateText(
-          textToProcess.trim(),
-          settings.targetLanguages
-        );
-        
-        if (Object.keys(translations).length === 0) {
-          console.warn("Translation returned empty result. Check API key and language settings.");
+      // 번역을 비동기로 처리하여 UI가 즉시 업데이트되도록 함
+      geminiService.translateText(
+        textToProcess.trim(),
+        settings.targetLanguages
+      ).then((translations) => {
+        if (Object.keys(translations).length > 0) {
+          const updatedMessage: StenoMessage = {
+            ...initialMessage,
+            translations,
+            isFinal: true
+          };
+          
+          broadcastService.sendUpdateMessage(updatedMessage);
+          setLogs(prev => prev.map(msg => msg.id === messageId ? updatedMessage : msg));
         }
-        
-        const updatedMessage: StenoMessage = {
-          ...initialMessage,
-          translations,
-          isFinal: true
-        };
-        
-        broadcastService.sendUpdateMessage(updatedMessage);
-        setLogs(prev => prev.map(msg => msg.id === messageId ? updatedMessage : msg));
-        
-      } catch (err) { 
+      }).catch((err) => {
         console.error("Translation failed", err);
-        if (err instanceof Error) {
-          console.error("Translation error details:", err.message);
-        }
-      }
-    } else {
-      if (!settings.translationEnabled) {
-        console.log("Translation is disabled in settings.");
-      } else if (settings.targetLanguages.length === 0) {
-        console.warn("Translation enabled but no target languages selected. Please select languages in settings.");
-      }
+      });
     }
   }, [settings.translationEnabled, settings.targetLanguages]);
 
