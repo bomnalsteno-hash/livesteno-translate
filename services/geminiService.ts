@@ -7,11 +7,11 @@ class GeminiService {
   private ai: GoogleGenAI | null = null;
 
   constructor() {
-    const apiKey = process.env.API_KEY;
+    const apiKey = import.meta.env.VITE_API_KEY;
     if (apiKey) {
       this.ai = new GoogleGenAI({ apiKey });
     } else {
-      console.warn("API_KEY is missing from environment variables.");
+      console.warn("VITE_API_KEY is missing from environment variables.");
     }
   }
 
