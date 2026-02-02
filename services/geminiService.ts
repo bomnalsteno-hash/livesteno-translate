@@ -19,14 +19,25 @@ class GeminiService {
     text: string,
     targetLanguages: LanguageCode[]
   ): Promise<TranslationMap> {
-    if (!this.ai) return {};
-    if (targetLanguages.length === 0) return {};
+    if (!this.ai) {
+      console.error("Gemini AI service not initialized. Check VITE_API_KEY environment variable.");
+      return {};
+    }
+    if (targetLanguages.length === 0) {
+      console.warn("No target languages selected for translation.");
+      return {};
+    }
 
     // Filter out 'ko' if present in targets, as we don't translate KO to KO
     const actualTargets = targetLanguages.filter(l => l !== 'ko');
-    if (actualTargets.length === 0) return {};
+    if (actualTargets.length === 0) {
+      console.warn("No valid target languages (excluding Korean) for translation.");
+      return {};
+    }
 
     try {
+      console.log(`Translating text: "${text}" to languages: ${actualTargets.join(", ")}`);
+      
       // Create a dynamic schema based on requested languages
       const properties: { [key: string]: Schema } = {};
       actualTargets.forEach((lang) => {
@@ -50,11 +61,19 @@ Return a JSON object where keys are the language codes (${actualTargets.join(", 
       });
 
       const jsonText = response.text;
-      if (!jsonText) return {};
+      if (!jsonText) {
+        console.error("Translation response is empty.");
+        return {};
+      }
 
-      return JSON.parse(jsonText) as TranslationMap;
+      const translations = JSON.parse(jsonText) as TranslationMap;
+      console.log("Translation successful:", translations);
+      return translations;
     } catch (error) {
       console.error("Translation error:", error);
+      if (error instanceof Error) {
+        console.error("Error details:", error.message, error.stack);
+      }
       return {};
     }
   }

@@ -148,10 +148,15 @@ export const StenographerPage: React.FC = () => {
     // 3. Translate
     if (settings.translationEnabled && settings.targetLanguages.length > 0) {
       try {
+        console.log(`Starting translation for: "${textToProcess.trim()}" with languages:`, settings.targetLanguages);
         const translations = await geminiService.translateText(
           textToProcess.trim(),
           settings.targetLanguages
         );
+        
+        if (Object.keys(translations).length === 0) {
+          console.warn("Translation returned empty result. Check API key and language settings.");
+        }
         
         const updatedMessage: StenoMessage = {
           ...initialMessage,
@@ -162,7 +167,18 @@ export const StenographerPage: React.FC = () => {
         broadcastService.sendUpdateMessage(updatedMessage);
         setLogs(prev => prev.map(msg => msg.id === messageId ? updatedMessage : msg));
         
-      } catch (err) { console.error("Translation failed", err); }
+      } catch (err) { 
+        console.error("Translation failed", err);
+        if (err instanceof Error) {
+          console.error("Translation error details:", err.message);
+        }
+      }
+    } else {
+      if (!settings.translationEnabled) {
+        console.log("Translation is disabled in settings.");
+      } else if (settings.targetLanguages.length === 0) {
+        console.warn("Translation enabled but no target languages selected. Please select languages in settings.");
+      }
     }
   }, [settings.translationEnabled, settings.targetLanguages]);
 
@@ -317,9 +333,17 @@ export const StenographerPage: React.FC = () => {
             <div className="flex justify-between items-center text-sm text-gray-500">
                <span>실시간 입력 버퍼</span>
                <div className="flex gap-2">
-                  <label className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                  <label className={`flex items-center gap-2 text-xs font-medium uppercase tracking-wider px-2 py-1 rounded ${
+                    settings.translationEnabled && settings.targetLanguages.length > 0
+                      ? 'bg-blue-50 text-blue-700'
+                      : settings.translationEnabled
+                      ? 'bg-yellow-50 text-yellow-700'
+                      : 'bg-gray-50 text-gray-500'
+                  }`}>
                      <CheckCircle size={12} />
                      자동 번역: {settings.translationEnabled ? 'ON' : 'OFF'}
+                     {settings.translationEnabled && settings.targetLanguages.length === 0 && ' (언어 미선택)'}
+                     {settings.translationEnabled && settings.targetLanguages.length > 0 && ` (${settings.targetLanguages.length}개 언어)`}
                   </label>
                </div>
             </div>
