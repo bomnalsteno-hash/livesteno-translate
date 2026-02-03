@@ -1,10 +1,10 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { LanguageCode, TranslationMap } from "../types";
 
-// 기본: gemini-1.5-flash (속도·비용 적정). 긴 문장에서 너무 느리면 maxOutputTokens 축소 또는 gemini-1.5-pro 검토(비용·지연 증가).
-// 유료 전환: Google AI Studio에서 빌링 활성화 후 동일 API 키 사용. RPM/TPM/RPD 한도 상승. Priority 파라미터는 Gemini Developer API에 없음.
+// API 버전(vibeta)에서 gemini-1.5-flash는 404 NOT_FOUND. gemini-2.0-flash 사용(지원됨).
+// 유료 전환: Google AI Studio에서 빌링 활성화 후 동일 API 키 사용. RPM/TPM/RPD 한도 상승.
 // 내부적으로 generateContentStream 사용: 청크를 모아서 한꺼번에 JSON 파싱 후 UI에는 완성된 결과만 표시(타임아웃 완화).
-const GEMINI_MODEL = "gemini-1.5-flash";
+const GEMINI_MODEL = "gemini-2.0-flash";
 const MIN_TRANSLATION_LENGTH = 2;
 const CACHE_SIZE = 100;
 const FIRST_CHUNK_TIMEOUT_MS = 18000; // 18초: 첫 청크가 올 때까지만 적용. 데이터가 조금이라도 오기 시작하면 타임아웃 해제.
