@@ -312,7 +312,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
       {(currentLayout === 'combined' || currentLayout === 'columns') && (
         <div 
           ref={containerRef}
-          className={`flex-1 overflow-y-auto flex flex-col justify-start pb-12 ${isEmbedded ? 'p-6' : 'p-12'}`}
+          className={`flex-1 overflow-y-auto flex flex-col justify-start ${isMobileView ? 'p-3 pb-6' : isEmbedded ? 'p-6 pb-12' : 'p-12 pb-12'}`}
         >
           <div className="flex flex-col items-stretch">
             {currentLayout === 'combined' && (
@@ -387,7 +387,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
            {activeRowLangs.map((lang, index) => (
               <div 
                 key={lang} 
-                className={`flex-1 overflow-y-auto auto-scroll-row flex flex-col ${isEmbedded ? 'p-4' : 'p-8'} ${index < activeRowLangs.length - 1 ? 'border-b border-white/10' : ''}`}
+                className={`flex-1 overflow-y-auto auto-scroll-row flex flex-col ${isMobileView ? 'p-3' : isEmbedded ? 'p-4' : 'p-8'} ${index < activeRowLangs.length - 1 ? 'border-b border-white/10' : ''}`}
               >
                  <div className="flex flex-col items-stretch">
                     {processedMessages.map(msg => (
@@ -415,7 +415,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
       )}
 
       {!isEmbedded && (
-        <div className="fixed top-4 right-4 flex gap-2 z-50">
+        <div className={`fixed flex gap-2 z-50 ${isMobileView ? 'top-2 right-2' : 'top-4 right-4'}`}>
           <button 
              className="bg-black/40 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-all"
              onClick={() => setShowSettings(!showSettings)}

@@ -90,25 +90,42 @@ class GeminiService {
       `[LiveSteno Translation] API 요청 시작 | model=${GEMINI_MODEL} | requestId=${requestId} | time=${new Date().toISOString()}`
     );
 
-    try {
-      const properties: { [key: string]: Schema } = {};
-      actualTargets.forEach((lang) => {
-        properties[lang] = { type: Type.STRING };
-      });
+    const properties: { [key: string]: Schema } = {};
+    actualTargets.forEach((lang) => {
+      properties[lang] = { type: Type.STRING };
+    });
+    const prompt = `Korean → ${actualTargets.join(", ")}. JSON only: {${actualTargets.map(l => `"${l}":"..."`).join(",")}} for: "${text.trim()}"`;
+    const config = {
+      responseMimeType: "application/json" as const,
+      responseSchema: { type: Type.OBJECT, properties, required: actualTargets },
+      temperature: 0.1,
+      maxOutputTokens: 500,
+    };
 
+    const tryParseAndCache = (rawText: string, elapsed: number): TranslationMap | null => {
+      if (!rawText?.trim()) return null;
+      try {
+        const translations = JSON.parse(rawText) as TranslationMap;
+        if (Object.keys(translations).length > 0) {
+          if (this.translationCache!.size >= CACHE_SIZE) {
+            const firstKey = this.translationCache!.keys().next().value;
+            this.translationCache!.delete(firstKey);
+          }
+          this.translationCache!.set(cacheKey, { translations, timestamp: Date.now() });
+          console.log(`[LiveSteno Translation] 성공 | requestId=${requestId} | ${elapsed}ms | languages=${Object.keys(translations).join(", ")}`);
+          return translations;
+        }
+      } catch (e) {
+        console.error(`[LiveSteno Translation] JSON parse error after ${elapsed}ms:`, e);
+      }
+      return null;
+    };
+
+    try {
       const stream = await this.ai.models.generateContentStream({
         model: GEMINI_MODEL,
-        contents: `Korean → ${actualTargets.join(", ")}. JSON only: {${actualTargets.map(l => `"${l}":"..."`).join(",")}} for: "${text.trim()}"`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: properties,
-            required: actualTargets,
-          },
-          temperature: 0.1,
-          maxOutputTokens: 500,
-        },
+        contents: prompt,
+        config,
       });
 
       let fullText = "";
@@ -123,9 +140,7 @@ class GeminiService {
             if (!firstChunkReceived) {
               firstChunkReceived = true;
               if (timeoutId) clearTimeout(timeoutId);
-              console.log(
-                `[LiveSteno Translation] 첫 청크 수신 | requestId=${requestId} | elapsed=${Date.now() - startTime}ms (이후 타임아웃 미적용)`
-              );
+              console.log(`[LiveSteno Translation] 첫 청크 수신 | requestId=${requestId} | elapsed=${Date.now() - startTime}ms`);
             }
             fullText += (chunk.text ?? "");
           }
@@ -137,77 +152,30 @@ class GeminiService {
 
       const rawText = await Promise.race([consumeStream(), timeoutPromise]);
       const elapsed = Date.now() - startTime;
-
-      console.log(
-        `[LiveSteno Translation] API 스트림 완료 | requestId=${requestId} | elapsed=${elapsed}ms | model=${GEMINI_MODEL}`
-      );
-      console.log(
-        `[LiveSteno Translation] 💡 Network 탭에서 "generativelanguage.googleapis.com" 요청의 Time(ms)과 elapsed 값이 비슷한지 확인하세요.`
-      );
-
-      if (!rawText || !rawText.trim()) {
-        console.error(`[LiveSteno Translation] Empty response after ${elapsed}ms | requestId=${requestId}`);
-        return {};
-      }
-
-      let translations: TranslationMap;
-      try {
-        translations = JSON.parse(rawText) as TranslationMap;
-      } catch (parseError) {
-        console.error(`[LiveSteno Translation] JSON parse error after ${elapsed}ms:`, parseError);
-        console.error("[LiveSteno Translation] Raw response:", rawText);
-        return {};
-      }
-
-      // 응답 검증: 모든 언어에 대한 번역이 있는지 확인
-      const missingLanguages = actualTargets.filter(lang => !translations[lang] || translations[lang].trim() === '');
-      if (missingLanguages.length > 0) {
-        console.warn(`Translation incomplete: Missing languages ${missingLanguages.join(", ")} after ${elapsed}ms`);
-        // 일부 언어만 번역된 경우라도 반환
-      }
-
-      // 성공한 번역만 캐시에 저장
-      if (Object.keys(translations).length > 0) {
-        if (this.translationCache.size >= CACHE_SIZE) {
-          const firstKey = this.translationCache.keys().next().value;
-          this.translationCache.delete(firstKey);
-        }
-        this.translationCache.set(cacheKey, {
-          translations,
-          timestamp: Date.now()
-        });
-        console.log(
-          `[LiveSteno Translation] 성공 | requestId=${requestId} | ${elapsed}ms | languages=${Object.keys(translations).join(", ")}`
-        );
-      }
-
-      return translations;
-    } catch (error: unknown) {
-      const elapsed = Date.now() - startTime;
-      const msg = error instanceof Error ? error.message : String(error);
-      const statusCode = (error as { status?: number; statusCode?: number })?.status ?? (error as { statusCode?: number })?.statusCode;
-
-      console.error(`[LiveSteno Translation] 실패 | requestId=${requestId} | elapsed=${elapsed}ms`, error);
-
-      if (statusCode === 429 || msg.includes("429") || msg.includes("rate limit") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota")) {
-        console.error("[LiveSteno Translation] ❌ 원인: 할당량 제한 (429). Google AI Studio/Cloud 할당량 또는 RPM/TPM 한도 초과.");
-        console.error("[LiveSteno Translation] 💡 조치: 빌링 활성화 또는 요청 간격 늘리기.");
-      } else if (
-        msg.includes("timeout") || msg.includes("Timeout") ||
-        msg.includes("ETIMEDOUT") || msg.includes("ECONNABORTED") || msg.includes("network") || msg.includes("Network")
-      ) {
-        console.error("[LiveSteno Translation] ❌ 원인: 네트워크/타임아웃. 첫 18초 안에 청크가 오지 않았거나 연결이 끊김.");
-        console.error("[LiveSteno Translation] 💡 조치: Network 탭에서 generativelanguage.googleapis.com 요청이 pending인지, 실패(빨간색)인지 확인.");
-      } else if (statusCode === 401 || statusCode === 403 || msg.includes("API") || msg.includes("key") || msg.includes("401") || msg.includes("403")) {
-        console.error("[LiveSteno Translation] ❌ 원인: API 인증 오류. Vercel 환경변수 VITE_API_KEY 확인.");
-      } else if (error instanceof Error) {
-        console.error("[LiveSteno Translation] ❌ 원인: 기타 오류. message:", msg);
-      } else {
-        console.error("[LiveSteno Translation] ❌ Unknown error type:", error);
-      }
-
-      return {};
+      console.log(`[LiveSteno Translation] API 스트림 완료 | requestId=${requestId} | elapsed=${elapsed}ms`);
+      const fromStream = tryParseAndCache(rawText, elapsed);
+      if (fromStream) return fromStream;
+    } catch (_streamErr) {
+      // 스트리밍 실패 시 무시하고 폴백 시도
     }
+
+    try {
+      console.log(`[LiveSteno Translation] 폴백: generateContent(비스트리밍) 시도 | requestId=${requestId}`);
+      const response = await this.ai!.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+        config,
+      });
+      const elapsed = Date.now() - startTime;
+      const rawText = (response as { text?: string }).text ?? "";
+      const fromFallback = tryParseAndCache(rawText, elapsed);
+      if (fromFallback) return fromFallback;
+    } catch (fallbackErr) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[LiveSteno Translation] 폴백도 실패 | requestId=${requestId} | elapsed=${elapsed}ms`, fallbackErr);
+    }
+
+    return {};
   }
 }
 
