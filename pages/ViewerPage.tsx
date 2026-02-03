@@ -60,24 +60,11 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
       if (Array.isArray(data.messages) && data.messages.length >= 0) {
         setMessages(data.messages);
       }
+      // 서버에서는 메시지·대상 언어만 반영. 배치 모드 등 viewerStyle은 뷰어 로컬 설정 유지(자꾸 바뀌는 현상 방지).
       if (data.settings != null) {
-        const validModes = ['combined', 'rows', 'columns'];
-        const loadedLayout = validModes.includes(data.settings.viewerStyle?.layoutMode as string)
-          ? data.settings.viewerStyle?.layoutMode
-          : 'combined';
         setSettings(prev => ({
           ...prev,
-          ...data.settings!,
-          targetLanguages: Array.isArray(data.settings!.targetLanguages) ? data.settings!.targetLanguages : [],
-          viewerStyle: {
-            ...DEFAULT_VIEWER_STYLE,
-            ...data.settings!.viewerStyle,
-            layoutMode: loadedLayout,
-            languageStyles: {
-              ...DEFAULT_VIEWER_STYLE.languageStyles,
-              ...(data.settings!.viewerStyle?.languageStyles || {}),
-            },
-          },
+          targetLanguages: Array.isArray(data.settings!.targetLanguages) ? data.settings!.targetLanguages : prev.targetLanguages,
         }));
       }
       if (typeof data.liveInput === 'string') {
