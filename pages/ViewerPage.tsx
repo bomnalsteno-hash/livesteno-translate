@@ -57,8 +57,11 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
     if (!roomId) return;
     const apply = (data: RoomStatePayload | null) => {
       if (!data) return;
-      if (Array.isArray(data.messages) && data.messages.length >= 0) {
-        setMessages(data.messages);
+      if (Array.isArray(data.messages)) {
+        setMessages(prev => {
+          if (data.messages!.length >= prev.length || data.messages!.length === 0) return data.messages!;
+          return prev;
+        });
       }
       // 서버에서는 메시지·대상 언어만 반영. 배치 모드 등 viewerStyle은 뷰어 로컬 설정 유지(자꾸 바뀌는 현상 방지).
       if (data.settings != null) {
@@ -218,14 +221,19 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
 
   const getLangStyle = (lang: string, isHighlight: boolean = false): React.CSSProperties => {
     const langStyles = style.languageStyles || {};
-    const langStyle = langStyles[lang] || langStyles['ko'] || DEFAULT_LANGUAGE_STYLE; 
-    
+    const langStyle = langStyles[lang] || langStyles['ko'] || DEFAULT_LANGUAGE_STYLE;
+    const koColor = (langStyles['ko'] || DEFAULT_LANGUAGE_STYLE).color || '#ffffff';
+
     let baseSize = isEmbedded ? style.baseFontSize * 0.6 : style.baseFontSize;
     if (isMobileView) baseSize *= 0.55;
-    
+
     let displayColor = langStyle.color || '#ffffff';
-    if (settings.viewerStyle.detectSpeakerChanges && isHighlight) {
-      displayColor = settings.viewerStyle.speakerChangeColor || '#FFBB00';
+    if (settings.viewerStyle.detectSpeakerChanges) {
+      if (isHighlight) {
+        displayColor = settings.viewerStyle.speakerChangeColor || '#FFBB00';
+      } else if (lang !== 'ko') {
+        displayColor = koColor;
+      }
     }
 
     return {
