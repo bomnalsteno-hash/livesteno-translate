@@ -69,7 +69,7 @@ export const DEFAULT_VIEWER_STYLE: ViewerStyle = {
   lineHeight: 1.5,
   layoutMode: 'combined',
   autoScroll: true,
-  paragraphSpacing: 1.0,
+  paragraphSpacing: 0,
   liveInputMode: 'char',
   detectSpeakerChanges: false,
   speakerChangeColor: '#FFBB00', // Default R255 G187 B0

@@ -384,6 +384,11 @@ export const StenographerPage: React.FC = () => {
                   </label>
                </div>
             </div>
+            {settings.translationEnabled && settings.targetLanguages.length > 0 && !geminiService.isReady() && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-2">
+                번역이 동작하지 않습니다. Vercel 환경변수 <code className="bg-amber-100 px-1 rounded">VITE_API_KEY</code>를 설정한 뒤 재배포해 주세요.
+              </div>
+            )}
             
             <textarea
               ref={textareaRef}

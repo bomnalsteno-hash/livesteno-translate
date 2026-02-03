@@ -47,6 +47,11 @@ class GeminiService {
     return false;
   }
 
+  /** 번역 사용 가능 여부 (API 키가 설정된 경우 true) */
+  public isReady(): boolean {
+    return this.ai !== null;
+  }
+
   public async translateText(
     text: string,
     targetLanguages: LanguageCode[]

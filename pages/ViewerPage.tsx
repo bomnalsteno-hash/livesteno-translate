@@ -52,7 +52,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
   }, [roomId]);
 
   // 다른 기기(스마트폰 등) 뷰어: 서버에 올라간 방 상태 폴링 (QR로 들어온 경우 여기서만 데이터 수신)
-  const POLL_INTERVAL_MS = 2000;
+  const POLL_INTERVAL_MS = 500;
   useEffect(() => {
     if (!roomId) return;
     const apply = (data: RoomStatePayload | null) => {
@@ -314,7 +314,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
           ref={containerRef}
           className={`flex-1 overflow-y-auto flex flex-col justify-start pb-12 ${isEmbedded ? 'p-6' : 'p-12'}`}
         >
-          <div className="mt-auto flex flex-col items-stretch">
+          <div className="flex flex-col items-stretch">
             {currentLayout === 'combined' && (
               <>
                 {processedMessages.map((msg) => (
@@ -389,7 +389,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
                 key={lang} 
                 className={`flex-1 overflow-y-auto auto-scroll-row flex flex-col ${isEmbedded ? 'p-4' : 'p-8'} ${index < activeRowLangs.length - 1 ? 'border-b border-white/10' : ''}`}
               >
-                 <div className="mt-auto flex flex-col items-stretch">
+                 <div className="flex flex-col items-stretch">
                     {processedMessages.map(msg => (
                        <div 
                           key={msg.id} 
