@@ -256,6 +256,10 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
 
   const activeRowLangs = ['ko', ...targetLangs];
 
+  // 방금 보낸 문장과 liveInput이 같을 때 중복 라인으로 보이지 않도록 숨김 (불안정/깜빡임 완화)
+  const lastMsg = processedMessages[processedMessages.length - 1];
+  const showLiveInput = liveInput && (!lastMsg || (lastMsg.originalText || '').trim() !== liveInput.trim());
+
   const renderLiveInputText = () => {
     if (!liveInput) return null;
     
@@ -325,7 +329,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
                     ) : null)}
                   </div>
                 ))}
-                {liveInput && (
+                {showLiveInput && (
                    <div style={{ marginBottom: paragraphMargin }}>
                       <div style={getLangStyle('ko', liveInputHighlight)} className="whitespace-pre-wrap inline-block pr-1">
                           {renderLiveInputText()}
@@ -353,7 +357,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
                       ))}
                     </div>
                   ))}
-                  {liveInput && (
+                  {showLiveInput && (
                      <div 
                        className="grid gap-8 items-start" 
                        style={{ 
@@ -395,7 +399,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
                           </div>
                        </div>
                     ))}
-                    {lang === 'ko' && liveInput && (
+                    {lang === 'ko' && showLiveInput && (
                        <div style={{ marginBottom: paragraphMargin }}>
                           <div style={getLangStyle('ko', liveInputHighlight)} className="whitespace-pre-wrap inline-block pr-1">
                               {renderLiveInputText()}
