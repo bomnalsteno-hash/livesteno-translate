@@ -250,6 +250,33 @@ export const StenographerPage: React.FC = () => {
     const isShift = e.shiftKey;
     const isCtrl = e.ctrlKey || e.metaKey;
 
+    // F4: 커서 기준 바로 앞 한 단어 삭제 (이전 띄어쓰기 전까지)
+    if (e.key === 'F4') {
+      e.preventDefault();
+      const el = e.currentTarget;
+      const value = el.value ?? '';
+      const start = el.selectionStart ?? value.length;
+      const end = el.selectionEnd ?? start;
+
+      const before = value.slice(0, start);
+      const after = value.slice(end);
+
+      // 직전 공백 위치 찾기 (없으면 문장 맨 앞까지 지움)
+      const lastSpaceIdx = before.lastIndexOf(' ');
+      const cutIndex = lastSpaceIdx === -1 ? 0 : lastSpaceIdx + 1; // 공백은 남기고 단어만 지우기
+
+      const newBefore = before.slice(0, cutIndex);
+      const newValue = newBefore + after;
+      const newCursor = newBefore.length;
+
+      el.value = newValue;
+      el.selectionStart = el.selectionEnd = newCursor;
+
+      setInputText(newValue);
+      broadcastService.sendLiveInput(newValue);
+      return;
+    }
+
     // INSERT Key Logic (Always sends if behavior is newline, or just acts as alternative send)
     if (e.key === 'Insert') {
         e.preventDefault();
