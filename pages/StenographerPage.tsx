@@ -96,6 +96,9 @@ export const StenographerPage: React.FC = () => {
           viewerStyle: {
              ...DEFAULT_VIEWER_STYLE,
              ...parsed.viewerStyle,
+             liveInputMode: parsed.viewerStyle?.liveInputMode === 'char'
+               ? 'word'
+               : (parsed.viewerStyle?.liveInputMode ?? DEFAULT_VIEWER_STYLE.liveInputMode),
              languageStyles: {
                ...DEFAULT_VIEWER_STYLE.languageStyles,
                ...(parsed.viewerStyle?.languageStyles || {})

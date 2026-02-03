@@ -71,7 +71,8 @@ export const DEFAULT_VIEWER_STYLE: ViewerStyle = {
   layoutMode: 'combined',
   autoScroll: true,
   paragraphSpacing: 0,
-  liveInputMode: 'char',
+  // 실시간 입력은 기본적으로 '단어 단위' 모드로 표시하여 깜빡임과 깨지는 느낌을 줄인다.
+  liveInputMode: 'word',
   detectSpeakerChanges: false,
   speakerChangeColor: '#FFBB00', // Default R255 G187 B0
   textAlign: 'left',

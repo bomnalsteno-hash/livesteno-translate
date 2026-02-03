@@ -139,7 +139,9 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
                 },
                 autoScroll: parsed.viewerStyle?.autoScroll ?? DEFAULT_VIEWER_STYLE.autoScroll,
                 paragraphSpacing: parsed.viewerStyle?.paragraphSpacing ?? DEFAULT_VIEWER_STYLE.paragraphSpacing,
-                liveInputMode: parsed.viewerStyle?.liveInputMode ?? DEFAULT_VIEWER_STYLE.liveInputMode,
+                liveInputMode: parsed.viewerStyle?.liveInputMode === 'char'
+                  ? 'word'
+                  : (parsed.viewerStyle?.liveInputMode ?? DEFAULT_VIEWER_STYLE.liveInputMode),
                 detectSpeakerChanges: parsed.viewerStyle?.detectSpeakerChanges ?? DEFAULT_VIEWER_STYLE.detectSpeakerChanges,
                 speakerChangeColor: parsed.viewerStyle?.speakerChangeColor ?? DEFAULT_VIEWER_STYLE.speakerChangeColor,
                 textAlign: parsed.viewerStyle?.textAlign ?? DEFAULT_VIEWER_STYLE.textAlign,
