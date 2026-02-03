@@ -76,13 +76,15 @@ export const DEFAULT_VIEWER_STYLE: ViewerStyle = {
   textAlign: 'left',
   languageStyles: {
     'ko': { ...DEFAULT_LANGUAGE_STYLE, fontFamily: 'Noto Sans KR', fontWeight: 500 },
+    // 번역 언어 기본 색상: 화자 변경감지 OFF일 때는 모두 노란색(영어와 동일)
+    // 화자 변경감지 ON일 때는 ViewerPage의 로직에서 번역이 한국어 색을 따라가도록 덮어씀
     'en': { ...DEFAULT_LANGUAGE_STYLE, fontFamily: 'Roboto', color: '#FFBB00' }, // Default R255 G187 B0
-    'ja': { ...DEFAULT_LANGUAGE_STYLE },
-    'zh': { ...DEFAULT_LANGUAGE_STYLE },
-    'vi': { ...DEFAULT_LANGUAGE_STYLE },
-    'es': { ...DEFAULT_LANGUAGE_STYLE },
-    'fr': { ...DEFAULT_LANGUAGE_STYLE },
-    'de': { ...DEFAULT_LANGUAGE_STYLE },
+    'ja': { ...DEFAULT_LANGUAGE_STYLE, color: '#FFBB00' },
+    'zh': { ...DEFAULT_LANGUAGE_STYLE, color: '#FFBB00' },
+    'vi': { ...DEFAULT_LANGUAGE_STYLE, color: '#FFBB00' },
+    'es': { ...DEFAULT_LANGUAGE_STYLE, color: '#FFBB00' },
+    'fr': { ...DEFAULT_LANGUAGE_STYLE, color: '#FFBB00' },
+    'de': { ...DEFAULT_LANGUAGE_STYLE, color: '#FFBB00' },
   }
 };
 
