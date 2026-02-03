@@ -153,14 +153,14 @@ export const StenographerPage: React.FC = () => {
     setLogs(prev => [...prev, initialMessage]);
 
     // 3. Translate (비동기로 처리하여 UI 블로킹 방지)
-    if (settings.translationEnabled && settings.targetLanguages.length > 0) {
-      // 번역 시작 시간 기록
+    // 번역 ON이면 시도. 대상 언어가 비어 있으면 기본으로 영어 사용(설정에서 미선택 시에도 번역 시도)
+    if (settings.translationEnabled) {
+      const langsToUse = settings.targetLanguages?.length ? settings.targetLanguages : ['en'];
       const translationStartTime = Date.now();
-      
-      // 번역을 비동기로 처리하여 UI가 즉시 업데이트되도록 함
+
       geminiService.translateText(
         textToProcess.trim(),
-        settings.targetLanguages
+        langsToUse
       ).then((translations) => {
         const elapsed = Date.now() - translationStartTime;
         

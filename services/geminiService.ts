@@ -74,6 +74,7 @@ class GeminiService {
 
     // 짧은 텍스트나 특수문자만 있는 경우 번역 스킵
     if (this.shouldSkipTranslation(text)) {
+      console.warn("[Gemini] 짧은 텍스트/특수문자만 있어서 번역 스킵:", JSON.stringify(text));
       return {};
     }
 
@@ -165,8 +166,8 @@ class GeminiService {
       console.log(`[LiveSteno Translation] API 스트림 완료 | requestId=${requestId} | elapsed=${elapsed}ms`);
       const fromStream = tryParseAndCache(rawText, elapsed);
       if (fromStream) return fromStream;
-    } catch (_streamErr) {
-      // 스트리밍 실패 시 무시하고 폴백 시도
+    } catch (streamErr) {
+      console.warn("[Gemini] 스트리밍 실패, 폴백 시도:", streamErr);
     }
 
     try {
@@ -177,7 +178,14 @@ class GeminiService {
         config,
       });
       const elapsed = Date.now() - startTime;
-      const rawText = (response as { text?: string }).text ?? "";
+      const res = response as { text?: string; candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      let rawText = res.text ?? "";
+      if (!rawText && res.candidates?.[0]?.content?.parts?.[0]?.text) {
+        rawText = res.candidates[0].content!.parts![0].text ?? "";
+      }
+      if (!rawText) {
+        console.warn("[Gemini] 폴백 응답에 text 없음. 응답 구조:", res);
+      }
       const fromFallback = tryParseAndCache(rawText, elapsed);
       if (fromFallback) return fromFallback;
     } catch (fallbackErr) {
