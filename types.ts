@@ -46,6 +46,7 @@ export interface AppSettings {
   enterKeyBehavior: 'send' | 'newline'; // 'send': Enter sends, 'newline': Enter adds new line
   triggerKeys: string[]; // e.g., ['.', '?', '!', 'Enter']
   viewerStyle: ViewerStyle;
+  enableWordDeleteShortcut?: boolean; // Ctrl+Backspace 단어 삭제 단축키 사용 여부 (선택적, 기본 true)
 }
 
 export interface RoomMetadata {

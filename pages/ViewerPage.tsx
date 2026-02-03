@@ -26,7 +26,8 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
       autoOnPunctuation: false,
       enterKeyBehavior: 'send', 
       triggerKeys: [],
-      viewerStyle: DEFAULT_VIEWER_STYLE
+      viewerStyle: DEFAULT_VIEWER_STYLE,
+      enableWordDeleteShortcut: true,
   });
   
   const [showSettings, setShowSettings] = useState(false);
@@ -126,6 +127,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
         setSettings(prev => ({
             ...prev,
             ...parsed,
+            enableWordDeleteShortcut: parsed.enableWordDeleteShortcut ?? true,
             targetLanguages: Array.isArray(parsed.targetLanguages) ? parsed.targetLanguages : [],
             viewerStyle: {
                 ...DEFAULT_VIEWER_STYLE,

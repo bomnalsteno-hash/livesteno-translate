@@ -385,6 +385,24 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                           </button>
                        </div>
                     </div>
+
+                     <div className="pt-3 border-t border-gray-100">
+                       <div className="flex items-center justify-between py-1">
+                         <div className="flex items-center gap-3">
+                           <div className="p-2 bg-gray-50 text-gray-600 rounded-lg"><WholeWord size={16} /></div>
+                           <div>
+                             <span className="text-sm font-medium text-gray-700 block">단어 삭제 단축키 (Ctrl+Backspace)</span>
+                             <span className="text-[10px] text-gray-400">켜면 입력창에서 Ctrl+Backspace로 바로 앞 한 단어를 지웁니다.</span>
+                           </div>
+                         </div>
+                         <button
+                           onClick={() => onSettingsChange({ ...settings, enableWordDeleteShortcut: settings.enableWordDeleteShortcut === false })}
+                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.enableWordDeleteShortcut === false ? 'bg-gray-300' : 'bg-blue-600'}`}
+                         >
+                           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.enableWordDeleteShortcut === false ? 'translate-x-1' : 'translate-x-6'}`} />
+                         </button>
+                       </div>
+                     </div>
                  </div>
                )}
 

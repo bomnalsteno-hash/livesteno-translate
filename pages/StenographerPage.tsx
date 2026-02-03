@@ -39,6 +39,7 @@ export const StenographerPage: React.FC = () => {
     enterKeyBehavior: 'send', // Default: Enter sends
     triggerKeys: ['.', '?', '!', 'Enter'],
     viewerStyle: DEFAULT_VIEWER_STYLE,
+    enableWordDeleteShortcut: true,
   });
 
   // UI State
@@ -91,6 +92,7 @@ export const StenographerPage: React.FC = () => {
         setSettings(prev => ({
           ...prev,
           ...parsed,
+          enableWordDeleteShortcut: parsed.enableWordDeleteShortcut ?? true,
           viewerStyle: {
              ...DEFAULT_VIEWER_STYLE,
              ...parsed.viewerStyle,
@@ -249,6 +251,38 @@ export const StenographerPage: React.FC = () => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const isShift = e.shiftKey;
     const isCtrl = e.ctrlKey || e.metaKey;
+
+    // Ctrl+Backspace: 커서 기준 바로 앞 한 단어 삭제 (이전 띄어쓰기/줄바꿈 전까지)
+    if (settings.enableWordDeleteShortcut !== false && e.key === 'Backspace' && isCtrl) {
+      e.preventDefault();
+      const el = e.currentTarget;
+      const value = el.value ?? '';
+      const start = el.selectionStart ?? value.length;
+      const end = el.selectionEnd ?? start;
+
+      const before = value.slice(0, start);
+      const after = value.slice(end);
+
+      const lastSpace = before.lastIndexOf(' ');
+      const lastNewline = before.lastIndexOf('\n');
+      const lastSeparatorIdx = Math.max(lastSpace, lastNewline);
+      const cutIndex = lastSeparatorIdx === -1 ? 0 : lastSeparatorIdx + 1;
+
+      if (cutIndex === before.length) {
+        return;
+      }
+
+      const newBefore = before.slice(0, cutIndex);
+      const newValue = newBefore + after;
+      const newCursor = newBefore.length;
+
+      el.value = newValue;
+      el.selectionStart = el.selectionEnd = newCursor;
+
+      setInputText(newValue);
+      broadcastService.sendLiveInput(newValue);
+      return;
+    }
 
     // F4: 커서 기준 바로 앞 한 단어 삭제 (이전 띄어쓰기/줄바꿈 전까지)
     if (e.key === 'F4') {
