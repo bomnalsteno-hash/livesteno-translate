@@ -252,9 +252,7 @@ export const StenographerPage: React.FC = () => {
     const isShift = e.shiftKey;
     const isCtrl = e.ctrlKey || e.metaKey;
 
-    // Ctrl+Backspace: 커서 기준 바로 앞 한 단어 삭제 (이전 띄어쓰기/줄바꿈 전까지)
-    if (settings.enableWordDeleteShortcut !== false && e.key === 'Backspace' && isCtrl) {
-      e.preventDefault();
+    const performWordDelete = () => {
       const el = e.currentTarget;
       const value = el.value ?? '';
       const start = el.selectionStart ?? value.length;
@@ -263,16 +261,35 @@ export const StenographerPage: React.FC = () => {
       const before = value.slice(0, start);
       const after = value.slice(end);
 
-      const lastSpace = before.lastIndexOf(' ');
-      const lastNewline = before.lastIndexOf('\n');
-      const lastSeparatorIdx = Math.max(lastSpace, lastNewline);
-      const cutIndex = lastSeparatorIdx === -1 ? 0 : lastSeparatorIdx + 1;
+      // 1) 커서 왼쪽의 공백/줄바꿈은 먼저 건너뛰기
+      let i = before.length - 1;
+      while (i >= 0 && (before[i] === ' ' || before[i] === '\n' || before[i] === '\t')) {
+        i--;
+      }
 
-      if (cutIndex === before.length) {
+      // 전부 공백이면 전체 삭제
+      if (i < 0) {
+        const newValueAll = after;
+        el.value = newValueAll;
+        el.selectionStart = el.selectionEnd = 0;
+        setInputText(newValueAll);
+        broadcastService.sendLiveInput(newValueAll);
         return;
       }
 
-      const newBefore = before.slice(0, cutIndex);
+      const endOfWord = i;
+
+      // 2) 단어(문장부호 포함)를 만나기 전까지 뒤로 이동 (공백/줄바꿈 전까지)
+      while (i >= 0 && before[i] !== ' ' && before[i] !== '\n' && before[i] !== '\t') {
+        i--;
+      }
+
+      const startOfWord = i + 1;
+      if (startOfWord > endOfWord) {
+        return;
+      }
+
+      const newBefore = before.slice(0, startOfWord);
       const newValue = newBefore + after;
       const newCursor = newBefore.length;
 
@@ -281,40 +298,19 @@ export const StenographerPage: React.FC = () => {
 
       setInputText(newValue);
       broadcastService.sendLiveInput(newValue);
+    };
+
+    // Ctrl+Backspace: 커서 기준 바로 앞 한 단어 삭제
+    if (settings.enableWordDeleteShortcut !== false && e.key === 'Backspace' && isCtrl) {
+      e.preventDefault();
+      performWordDelete();
       return;
     }
 
-    // F4: 커서 기준 바로 앞 한 단어 삭제 (이전 띄어쓰기/줄바꿈 전까지)
+    // F4: (가능한 환경에서) 커서 기준 바로 앞 한 단어 삭제
     if (e.key === 'F4') {
       e.preventDefault();
-      const el = e.currentTarget;
-      const value = el.value ?? '';
-      const start = el.selectionStart ?? value.length;
-      const end = el.selectionEnd ?? start;
-
-      const before = value.slice(0, start);
-      const after = value.slice(end);
-
-      // 직전 공백/줄바꿈 위치 찾기 (없으면 문장 맨 앞까지 지움)
-      const lastSpace = before.lastIndexOf(' ');
-      const lastNewline = before.lastIndexOf('\n');
-      const lastSeparatorIdx = Math.max(lastSpace, lastNewline);
-      const cutIndex = lastSeparatorIdx === -1 ? 0 : lastSeparatorIdx + 1; // 구분 문자까지는 남기고 단어만 지우기
-
-      // 더 지울 단어가 없으면 아무것도 하지 않음
-      if (cutIndex === before.length) {
-        return;
-      }
-
-      const newBefore = before.slice(0, cutIndex);
-      const newValue = newBefore + after;
-      const newCursor = newBefore.length;
-
-      el.value = newValue;
-      el.selectionStart = el.selectionEnd = newCursor;
-
-      setInputText(newValue);
-      broadcastService.sendLiveInput(newValue);
+      performWordDelete();
       return;
     }
 
