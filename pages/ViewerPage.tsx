@@ -224,8 +224,8 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
     if (isMobileView) baseSize *= 0.55;
     
     let displayColor = langStyle.color || '#ffffff';
-    if (lang === 'ko' && settings.viewerStyle.detectSpeakerChanges && isHighlight) {
-        displayColor = settings.viewerStyle.speakerChangeColor || '#FFBB00';
+    if (settings.viewerStyle.detectSpeakerChanges && isHighlight) {
+      displayColor = settings.viewerStyle.speakerChangeColor || '#FFBB00';
     }
 
     return {
@@ -311,7 +311,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
                   >
                     <div style={getLangStyle('ko', msg.isHighlight)} className="whitespace-pre-wrap">{msg.originalText}</div>
                     {targetLangs.map(lang => msg.translations && msg.translations[lang] ? (
-                      <div key={lang} style={getLangStyle(lang)} className="opacity-90 whitespace-pre-wrap">
+                      <div key={lang} style={getLangStyle(lang, msg.isHighlight)} className="opacity-90 whitespace-pre-wrap">
                         {msg.translations[lang]}
                       </div>
                     ) : null)}
@@ -339,7 +339,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
                     >
                       <div style={getLangStyle('ko', msg.isHighlight)} className="whitespace-pre-wrap break-words">{msg.originalText}</div>
                       {targetLangs.map(lang => (
-                         <div key={lang} style={getLangStyle(lang)} className="whitespace-pre-wrap break-words">
+                         <div key={lang} style={getLangStyle(lang, msg.isHighlight)} className="whitespace-pre-wrap break-words">
                             {(msg.translations && msg.translations[lang]) || (msg.isFinal ? '' : '...')}
                          </div>
                       ))}
@@ -382,7 +382,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
                           key={msg.id} 
                           style={{ marginBottom: paragraphMargin }}
                         >
-                          <div style={getLangStyle(lang, lang === 'ko' ? msg.isHighlight : false)} className="whitespace-pre-wrap">
+                          <div style={getLangStyle(lang, msg.isHighlight)} className="whitespace-pre-wrap">
                              {(msg.translations && msg.translations[lang]) || (lang === 'ko' ? msg.originalText : (msg.isFinal ? '' : '...'))}
                           </div>
                        </div>
