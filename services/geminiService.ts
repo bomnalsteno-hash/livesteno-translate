@@ -1,10 +1,13 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { LanguageCode, TranslationMap } from "../types";
 
-const GEMINI_MODEL = "gemini-3-flash-preview"; // 최신 모델 사용
-const MIN_TRANSLATION_LENGTH = 2; // 최소 번역 길이 (글자 수)
-const CACHE_SIZE = 100; // 캐시 최대 크기
-const TRANSLATION_TIMEOUT = 10000; // 10초 타임아웃
+// 기본: gemini-1.5-flash (속도·비용 적정). 긴 문장에서 너무 느리면 maxOutputTokens 축소 또는 gemini-1.5-pro 검토(비용·지연 증가).
+// 유료 전환: Google AI Studio에서 빌링 활성화 후 동일 API 키 사용. RPM/TPM/RPD 한도 상승. Priority 파라미터는 Gemini Developer API에 없음.
+// 내부적으로 generateContentStream 사용: 청크를 모아서 한꺼번에 JSON 파싱 후 UI에는 완성된 결과만 표시(타임아웃 완화).
+const GEMINI_MODEL = "gemini-1.5-flash";
+const MIN_TRANSLATION_LENGTH = 2;
+const CACHE_SIZE = 100;
+const FIRST_CHUNK_TIMEOUT_MS = 18000; // 18초: 첫 청크가 올 때까지만 적용. 데이터가 조금이라도 오기 시작하면 타임아웃 해제.
 
 interface CacheEntry {
   translations: TranslationMap;
@@ -75,18 +78,22 @@ class GeminiService {
     }
 
     const startTime = Date.now();
-    
+    const requestId = `${startTime}-${Math.random().toString(36).slice(2, 8)}`;
+
+    // Network 탭과 대조용: 요청 시작 시점 로그 (generativelanguage.googleapis.com 요청 시간과 비교)
+    console.log(
+      `[LiveSteno Translation] API 요청 시작 | model=${GEMINI_MODEL} | requestId=${requestId} | time=${new Date().toISOString()}`
+    );
+
     try {
-      // Create a dynamic schema based on requested languages
       const properties: { [key: string]: Schema } = {};
       actualTargets.forEach((lang) => {
         properties[lang] = { type: Type.STRING };
       });
 
-      // 더 간단하고 빠른 프롬프트 사용
-      const translationPromise = this.ai.models.generateContent({
+      const stream = await this.ai.models.generateContentStream({
         model: GEMINI_MODEL,
-        contents: `Translate "${text.trim()}" from Korean to ${actualTargets.join(", ")}. Return JSON: {${actualTargets.map(l => `"${l}": "translation"`).join(", ")}}`,
+        contents: `Korean → ${actualTargets.join(", ")}. JSON only: {${actualTargets.map(l => `"${l}":"..."`).join(",")}} for: "${text.trim()}"`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -94,30 +101,56 @@ class GeminiService {
             properties: properties,
             required: actualTargets,
           },
-          temperature: 0.1, // 더 빠르고 일관된 결과
-          maxOutputTokens: 500, // 출력 토큰 제한으로 속도 향상
+          temperature: 0.1,
+          maxOutputTokens: 500,
         },
       });
 
-      // 타임아웃 처리
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Translation timeout")), TRANSLATION_TIMEOUT)
-      );
+      let fullText = "";
+      let firstChunkReceived = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("Translation timeout")), FIRST_CHUNK_TIMEOUT_MS);
+      });
+      const consumeStream = async (): Promise<string> => {
+        try {
+          for await (const chunk of stream) {
+            if (!firstChunkReceived) {
+              firstChunkReceived = true;
+              if (timeoutId) clearTimeout(timeoutId);
+              console.log(
+                `[LiveSteno Translation] 첫 청크 수신 | requestId=${requestId} | elapsed=${Date.now() - startTime}ms (이후 타임아웃 미적용)`
+              );
+            }
+            fullText += (chunk.text ?? "");
+          }
+          return fullText;
+        } finally {
+          if (timeoutId) clearTimeout(timeoutId);
+        }
+      };
 
-      const response = await Promise.race([translationPromise, timeoutPromise]) as any;
+      const rawText = await Promise.race([consumeStream(), timeoutPromise]);
       const elapsed = Date.now() - startTime;
 
-      if (!response || !response.text) {
-        console.error(`Translation failed: Empty response after ${elapsed}ms`);
+      console.log(
+        `[LiveSteno Translation] API 스트림 완료 | requestId=${requestId} | elapsed=${elapsed}ms | model=${GEMINI_MODEL}`
+      );
+      console.log(
+        `[LiveSteno Translation] 💡 Network 탭에서 "generativelanguage.googleapis.com" 요청의 Time(ms)과 elapsed 값이 비슷한지 확인하세요.`
+      );
+
+      if (!rawText || !rawText.trim()) {
+        console.error(`[LiveSteno Translation] Empty response after ${elapsed}ms | requestId=${requestId}`);
         return {};
       }
 
       let translations: TranslationMap;
       try {
-        translations = JSON.parse(response.text) as TranslationMap;
+        translations = JSON.parse(rawText) as TranslationMap;
       } catch (parseError) {
-        console.error(`Translation JSON parse error after ${elapsed}ms:`, parseError);
-        console.error("Raw response:", response.text);
+        console.error(`[LiveSteno Translation] JSON parse error after ${elapsed}ms:`, parseError);
+        console.error("[LiveSteno Translation] Raw response:", rawText);
         return {};
       }
 
@@ -138,38 +171,36 @@ class GeminiService {
           translations,
           timestamp: Date.now()
         });
-        console.log(`Translation success: ${elapsed}ms, languages: ${Object.keys(translations).join(", ")}`);
+        console.log(
+          `[LiveSteno Translation] 성공 | requestId=${requestId} | ${elapsed}ms | languages=${Object.keys(translations).join(", ")}`
+        );
       }
 
       return translations;
-    } catch (error) {
+    } catch (error: unknown) {
       const elapsed = Date.now() - startTime;
-      console.error(`❌ Translation error after ${elapsed}ms:`, error);
-      
-      if (error instanceof Error) {
-        console.error("Error message:", error.message);
-        console.error("Error name:", error.name);
-        
-        if (error.message.includes("timeout")) {
-          console.error("⚠️ Translation timed out after 10 seconds.");
-          console.error("Possible causes:");
-          console.error("  1. API key is invalid or not set correctly in Vercel");
-          console.error("  2. Network connectivity issues");
-          console.error("  3. Gemini API is experiencing high load");
-          console.error("  4. API rate limit exceeded");
-          console.error("  5. Model name 'gemini-3-flash-preview' may not be available");
-          console.error("\n💡 Check Vercel environment variables: Settings → Environment Variables → VITE_API_KEY");
-        } else if (error.message.includes("API") || error.message.includes("key") || error.message.includes("401") || error.message.includes("403")) {
-          console.error("⚠️ API authentication error. Check your VITE_API_KEY in Vercel.");
-        } else if (error.message.includes("429") || error.message.includes("rate limit")) {
-          console.error("⚠️ API rate limit exceeded. Please wait a moment and try again.");
-        } else {
-          console.error("⚠️ Unexpected error:", error);
-        }
+      const msg = error instanceof Error ? error.message : String(error);
+      const statusCode = (error as { status?: number; statusCode?: number })?.status ?? (error as { statusCode?: number })?.statusCode;
+
+      console.error(`[LiveSteno Translation] 실패 | requestId=${requestId} | elapsed=${elapsed}ms`, error);
+
+      if (statusCode === 429 || msg.includes("429") || msg.includes("rate limit") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota")) {
+        console.error("[LiveSteno Translation] ❌ 원인: 할당량 제한 (429). Google AI Studio/Cloud 할당량 또는 RPM/TPM 한도 초과.");
+        console.error("[LiveSteno Translation] 💡 조치: 빌링 활성화 또는 요청 간격 늘리기.");
+      } else if (
+        msg.includes("timeout") || msg.includes("Timeout") ||
+        msg.includes("ETIMEDOUT") || msg.includes("ECONNABORTED") || msg.includes("network") || msg.includes("Network")
+      ) {
+        console.error("[LiveSteno Translation] ❌ 원인: 네트워크/타임아웃. 첫 18초 안에 청크가 오지 않았거나 연결이 끊김.");
+        console.error("[LiveSteno Translation] 💡 조치: Network 탭에서 generativelanguage.googleapis.com 요청이 pending인지, 실패(빨간색)인지 확인.");
+      } else if (statusCode === 401 || statusCode === 403 || msg.includes("API") || msg.includes("key") || msg.includes("401") || msg.includes("403")) {
+        console.error("[LiveSteno Translation] ❌ 원인: API 인증 오류. Vercel 환경변수 VITE_API_KEY 확인.");
+      } else if (error instanceof Error) {
+        console.error("[LiveSteno Translation] ❌ 원인: 기타 오류. message:", msg);
       } else {
-        console.error("⚠️ Unknown error type:", error);
+        console.error("[LiveSteno Translation] ❌ Unknown error type:", error);
       }
-      
+
       return {};
     }
   }

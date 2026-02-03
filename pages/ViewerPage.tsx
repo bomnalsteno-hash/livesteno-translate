@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { broadcastService } from '../services/broadcastService';
+import { roomSyncService } from '../services/roomSyncService';
 import { StenoMessage, AppSettings, DEFAULT_VIEWER_STYLE, DEFAULT_LANGUAGE_STYLE } from '../types';
 import { SettingsPanel } from '../components/SettingsPanel';
 import { Settings } from 'lucide-react';
@@ -33,11 +34,50 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
   // Ref for the main scrolling container
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Connect to Room
+  // Connect to Room (같은 기기 탭 간 BroadcastChannel)
   useEffect(() => {
     if (roomId) {
       broadcastService.connect(roomId);
     }
+  }, [roomId]);
+
+  // 다른 기기(스마트폰 등) 뷰어: 서버에 올라간 방 상태 폴링 (QR로 들어온 경우 여기서만 데이터 수신)
+  const POLL_INTERVAL_MS = 2000;
+  useEffect(() => {
+    if (!roomId) return;
+    const apply = (data: roomSyncService.RoomStatePayload | null) => {
+      if (!data) return;
+      if (Array.isArray(data.messages) && data.messages.length >= 0) {
+        setMessages(data.messages);
+      }
+      if (data.settings != null) {
+        const validModes = ['combined', 'rows', 'columns'];
+        const loadedLayout = validModes.includes(data.settings.viewerStyle?.layoutMode as string)
+          ? data.settings.viewerStyle?.layoutMode
+          : 'combined';
+        setSettings(prev => ({
+          ...prev,
+          ...data.settings!,
+          targetLanguages: Array.isArray(data.settings!.targetLanguages) ? data.settings!.targetLanguages : [],
+          viewerStyle: {
+            ...DEFAULT_VIEWER_STYLE,
+            ...data.settings!.viewerStyle,
+            layoutMode: loadedLayout,
+            languageStyles: {
+              ...DEFAULT_VIEWER_STYLE.languageStyles,
+              ...(data.settings!.viewerStyle?.languageStyles || {}),
+            },
+          },
+        }));
+      }
+      if (typeof data.liveInput === 'string') {
+        setLiveInput(data.liveInput);
+      }
+    };
+    const poll = () => roomSyncService.getRoomState(roomId!).then(apply);
+    poll();
+    const interval = setInterval(poll, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
   }, [roomId]);
 
   // Initial Load & Persistence (With Safety Checks)

@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { geminiService } from '../services/geminiService';
 import { broadcastService } from '../services/broadcastService';
+import { roomSyncService } from '../services/roomSyncService';
 import { roomRegistry } from '../services/roomRegistry'; // Import registry
 import { ViewerPage } from './ViewerPage';
 import { SettingsPanel } from '../components/SettingsPanel';
@@ -113,6 +114,12 @@ export const StenographerPage: React.FC = () => {
     localStorage.setItem(settingsKey, JSON.stringify(settings));
     broadcastService.syncSettings(settings);
   }, [settings, settingsKey]);
+
+  // 서버에 방 상태 푸시 (QR로 스마트폰 뷰어가 같은 방 상태를 받을 수 있도록)
+  useEffect(() => {
+    if (!roomId) return;
+    roomSyncService.setRoomState(roomId, { messages: logs, settings, liveInput: inputText });
+  }, [roomId, logs, settings, inputText]);
 
   // Smart Auto-scroll (Local History)
   useEffect(() => {
