@@ -62,3 +62,9 @@ export async function setRoomState(
     // 로컬 개발 등 API 미동작 시 무시
   }
 }
+
+/** 한 객체로 묶어서 named export (ViewerPage, StenographerPage에서 import { roomSyncService } 사용) */
+export const roomSyncService = {
+  getRoomState,
+  setRoomState,
+};

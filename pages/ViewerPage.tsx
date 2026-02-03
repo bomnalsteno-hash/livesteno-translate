@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { broadcastService } from '../services/broadcastService';
-import { roomSyncService } from '../services/roomSyncService';
+import { roomSyncService, type RoomStatePayload } from '../services/roomSyncService';
 import { StenoMessage, AppSettings, DEFAULT_VIEWER_STYLE, DEFAULT_LANGUAGE_STYLE } from '../types';
 import { SettingsPanel } from '../components/SettingsPanel';
 import { Settings } from 'lucide-react';
@@ -45,7 +45,7 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
   const POLL_INTERVAL_MS = 2000;
   useEffect(() => {
     if (!roomId) return;
-    const apply = (data: roomSyncService.RoomStatePayload | null) => {
+    const apply = (data: RoomStatePayload | null) => {
       if (!data) return;
       if (Array.isArray(data.messages) && data.messages.length >= 0) {
         setMessages(data.messages);
