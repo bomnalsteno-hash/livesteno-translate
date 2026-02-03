@@ -250,7 +250,7 @@ export const StenographerPage: React.FC = () => {
     const isShift = e.shiftKey;
     const isCtrl = e.ctrlKey || e.metaKey;
 
-    // F4: 커서 기준 바로 앞 한 단어 삭제 (이전 띄어쓰기 전까지)
+    // F4: 커서 기준 바로 앞 한 단어 삭제 (이전 띄어쓰기/줄바꿈 전까지)
     if (e.key === 'F4') {
       e.preventDefault();
       const el = e.currentTarget;
@@ -261,9 +261,16 @@ export const StenographerPage: React.FC = () => {
       const before = value.slice(0, start);
       const after = value.slice(end);
 
-      // 직전 공백 위치 찾기 (없으면 문장 맨 앞까지 지움)
-      const lastSpaceIdx = before.lastIndexOf(' ');
-      const cutIndex = lastSpaceIdx === -1 ? 0 : lastSpaceIdx + 1; // 공백은 남기고 단어만 지우기
+      // 직전 공백/줄바꿈 위치 찾기 (없으면 문장 맨 앞까지 지움)
+      const lastSpace = before.lastIndexOf(' ');
+      const lastNewline = before.lastIndexOf('\n');
+      const lastSeparatorIdx = Math.max(lastSpace, lastNewline);
+      const cutIndex = lastSeparatorIdx === -1 ? 0 : lastSeparatorIdx + 1; // 구분 문자까지는 남기고 단어만 지우기
+
+      // 더 지울 단어가 없으면 아무것도 하지 않음
+      if (cutIndex === before.length) {
+        return;
+      }
 
       const newBefore = before.slice(0, cutIndex);
       const newValue = newBefore + after;
