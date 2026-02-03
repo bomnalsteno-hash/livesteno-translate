@@ -65,7 +65,7 @@ export const DEFAULT_LANGUAGE_STYLE: LanguageStyle = {
 
 export const DEFAULT_VIEWER_STYLE: ViewerStyle = {
   backgroundColor: '#000000',
-  baseFontSize: 48,
+  baseFontSize: 32,
   lineHeight: 1.5,
   layoutMode: 'combined',
   autoScroll: true,

@@ -30,9 +30,19 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
   });
   
   const [showSettings, setShowSettings] = useState(false);
-  
+  const [isMobileView, setIsMobileView] = useState(false);
+
   // Ref for the main scrolling container
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // 모바일/좁은 화면 감지 → 글씨 크기 추가 축소
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobileView(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   // Connect to Room (같은 기기 탭 간 BroadcastChannel)
   useEffect(() => {
@@ -223,7 +233,8 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
     const langStyles = style.languageStyles || {};
     const langStyle = langStyles[lang] || langStyles['ko'] || DEFAULT_LANGUAGE_STYLE; 
     
-    const baseSize = isEmbedded ? style.baseFontSize * 0.6 : style.baseFontSize;
+    let baseSize = isEmbedded ? style.baseFontSize * 0.6 : style.baseFontSize;
+    if (isMobileView) baseSize *= 0.55;
     
     let displayColor = langStyle.color || '#ffffff';
     if (lang === 'ko' && settings.viewerStyle.detectSpeakerChanges && isHighlight) {

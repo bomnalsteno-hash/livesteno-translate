@@ -18,3 +18,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/13sQJCi4XgiDnSYePJPKM_j
 2. Set the `VITE_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Deploy to Vercel
+
+1. Connect your GitHub repo to Vercel and deploy.
+2. **번역이 동작하려면** Vercel 프로젝트 **Settings → Environment Variables** 에서 **`VITE_API_KEY`** 를 Gemini API 키로 설정한 뒤, **재배포**하세요. (빌드 시점에 주입되므로 변수 추가/수정 후 반드시 Redeploy 필요.)
