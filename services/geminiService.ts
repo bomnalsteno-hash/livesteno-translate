@@ -56,11 +56,19 @@ class GeminiService {
     text: string,
     targetLanguages: LanguageCode[]
   ): Promise<TranslationMap> {
+    console.log(
+      "%c[Gemini] 번역 요청 시작: 텍스트=%s, 언어=%s",
+      "background: #222; color: #0f0; font-weight: bold; padding: 4px 8px;",
+      JSON.stringify(text),
+      JSON.stringify(targetLanguages)
+    );
+
     if (!this.ai) {
       console.error("Gemini AI service not initialized. Check VITE_API_KEY environment variable.");
       return {};
     }
     if (targetLanguages.length === 0) {
+      console.warn("[Gemini] 설정 상태: 번역 ON인데 대상 언어 리스트가 비어 있어서 함수 종료됨. (targetLanguages.length === 0)");
       return {};
     }
 
@@ -72,6 +80,7 @@ class GeminiService {
     // Filter out 'ko' if present in targets, as we don't translate KO to KO
     const actualTargets = targetLanguages.filter(l => l !== 'ko');
     if (actualTargets.length === 0) {
+      console.warn("[Gemini] 설정 상태: 대상 언어가 'ko'만 있거나 비어 있어서 함수 종료됨. (actualTargets.length === 0)");
       return {};
     }
 
@@ -103,6 +112,7 @@ class GeminiService {
     };
 
     const tryParseAndCache = (rawText: string, elapsed: number): TranslationMap | null => {
+      console.log("[Gemini] Raw Response (파싱 전):", rawText);
       if (!rawText?.trim()) return null;
       try {
         const translations = JSON.parse(rawText) as TranslationMap;
