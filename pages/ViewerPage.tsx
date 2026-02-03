@@ -35,6 +35,18 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
   // Ref for the main scrolling container
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const dedupeMessagesById = (list: StenoMessage[]): StenoMessage[] => {
+    const seen = new Set<string>();
+    const out: StenoMessage[] = [];
+    for (const m of list) {
+      if (!m || !m.id) continue;
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      out.push(m);
+    }
+    return out;
+  };
+
   // 모바일/좁은 화면 감지 → 글씨 크기 추가 축소
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -58,9 +70,14 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
     const apply = (data: RoomStatePayload | null) => {
       if (!data) return;
       if (Array.isArray(data.messages)) {
+        const incoming = dedupeMessagesById(data.messages as StenoMessage[]);
         setMessages(prev => {
-          if (data.messages!.length >= prev.length || data.messages!.length === 0) return data.messages!;
-          return prev;
+          const prevArr = Array.isArray(prev) ? prev : [];
+          const prevUniqueLen = dedupeMessagesById(prevArr).length;
+          if (incoming.length === 0) return [];
+          if (incoming.length >= prevUniqueLen) return incoming;
+          // 서버 데이터가 잠깐 과거로 되돌아간 경우는 기존 유지하되, 중복은 제거
+          return dedupeMessagesById(prevArr);
         });
       }
       // 서버에서는 메시지·대상 언어만 반영. 배치 모드 등 viewerStyle은 뷰어 로컬 설정 유지(자꾸 바뀌는 현상 방지).
@@ -144,10 +161,21 @@ export const ViewerPage: React.FC<ViewerPageProps> = ({ isEmbedded = false }) =>
     const unsubscribe = broadcastService.subscribe((event) => {
       switch (event.type) {
         case 'NEW_MESSAGE':
-          setMessages(prev => [...(Array.isArray(prev) ? prev : []), event.payload]);
+          setMessages(prev => {
+            const prevArr = Array.isArray(prev) ? prev : [];
+            if (prevArr.some(m => m.id === event.payload.id)) return prevArr;
+            return [...prevArr, event.payload];
+          });
           break;
         case 'UPDATE_MESSAGE':
-          setMessages(prev => (Array.isArray(prev) ? prev : []).map(m => m.id === event.payload.id ? event.payload : m));
+          setMessages(prev => {
+            const prevArr = Array.isArray(prev) ? prev : [];
+            const exists = prevArr.some(m => m.id === event.payload.id);
+            const next = exists
+              ? prevArr.map(m => (m.id === event.payload.id ? event.payload : m))
+              : [...prevArr, event.payload];
+            return dedupeMessagesById(next);
+          });
           break;
         case 'LIVE_INPUT':
           setLiveInput(event.payload || '');

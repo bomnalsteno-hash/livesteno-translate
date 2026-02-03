@@ -48,6 +48,8 @@ export const StenographerPage: React.FC = () => {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
+  // Enter 키 반복/이중 트리거로 동일 문장이 2번 확정되는 것을 방지
+  const lastSentRef = useRef<{ text: string; at: number } | null>(null);
 
   // Connect to Room & Registry
   useEffect(() => {
@@ -132,15 +134,23 @@ export const StenographerPage: React.FC = () => {
   }, [logs]);
 
   const processSentence = useCallback(async (textToProcess: string) => {
-    if (!textToProcess.trim()) return;
+    const normalized = (textToProcess || '').trim();
+    if (!normalized) return;
 
-    const messageId = Date.now().toString();
-    const timestamp = Date.now();
+    const now = Date.now();
+    const last = lastSentRef.current;
+    if (last && last.text === normalized && now - last.at < 800) {
+      return;
+    }
+    lastSentRef.current = { text: normalized, at: now };
+
+    const messageId = now.toString();
+    const timestamp = now;
     
     // 1. Create initial message
     const initialMessage: StenoMessage = {
       id: messageId,
-      originalText: textToProcess.trim(),
+      originalText: normalized,
       translations: {},
       timestamp,
       isFinal: !settings.translationEnabled
@@ -159,7 +169,7 @@ export const StenographerPage: React.FC = () => {
       const translationStartTime = Date.now();
 
       geminiService.translateText(
-        textToProcess.trim(),
+        normalized,
         langsToUse
       ).then((translations) => {
         const elapsed = Date.now() - translationStartTime;
@@ -176,11 +186,11 @@ export const StenographerPage: React.FC = () => {
           
           // 느린 번역 경고 (5초 이상)
           if (elapsed > 5000) {
-            console.warn(`Slow translation: ${elapsed}ms for "${textToProcess.substring(0, 20)}..."`);
+            console.warn(`Slow translation: ${elapsed}ms for "${normalized.substring(0, 20)}..."`);
           }
         } else {
           // 번역이 실패했지만 에러 없이 빈 결과가 반환된 경우
-          console.warn(`Translation returned empty result after ${elapsed}ms for: "${textToProcess.substring(0, 30)}..."`);
+          console.warn(`Translation returned empty result after ${elapsed}ms for: "${normalized.substring(0, 30)}..."`);
           console.warn("Possible causes: API key issue, network error, or API rate limit");
           
           // 실패한 번역도 최종 상태로 표시 (번역 없이)
